@@ -66,8 +66,12 @@ def confirm(parent, msg="Bu kaydı silmek istediğinize emin misiniz?"):
 # ── Widget'lar ────────────────────────────────────────────────────────────────
 
 def _title(p, text, **kw):
-    return ctk.CTkLabel(p, text=text, font=ctk.CTkFont(size=21, weight="bold"),
-                        text_color=T.ACCENT, **kw)
+    return ctk.CTkLabel(p, text=text, font=ctk.CTkFont(size=18, weight="bold"),
+                        text_color=T.TEXT_PRIMARY, **kw)
+
+def _subtitle(p, text, **kw):
+    return ctk.CTkLabel(p, text=text, font=ctk.CTkFont(size=12),
+                        text_color=T.TEXT_MUTED, **kw)
 
 def _lbl(p, text, size=13, bold=False, color=None, **kw):
     f = ctk.CTkFont(size=size, weight="bold" if bold else "normal")
@@ -75,8 +79,25 @@ def _lbl(p, text, size=13, bold=False, color=None, **kw):
     if color: o["text_color"] = color
     return ctk.CTkLabel(p, **o)
 
-def _card(p, **kw):
-    return ctk.CTkFrame(p, fg_color=T.CARD_BG, corner_radius=12, **kw)
+def _card(p, hover=True, **kw):
+    c = ctk.CTkFrame(p, fg_color=T.CARD_BG, corner_radius=10,
+                     border_width=1, border_color=T.BORDER, **kw)
+    if hover:
+        c.bind("<Enter>", lambda e: c.configure(border_color=T.ACCENT))
+        c.bind("<Leave>", lambda e: c.configure(border_color=T.BORDER))
+    return c
+
+def _empty(p, icon, title, subtitle=""):
+    """Boş durum widget'ı — kayıt yokken gösterilir."""
+    f = ctk.CTkFrame(p, fg_color="transparent")
+    f.pack(pady=24)
+    ctk.CTkLabel(f, text=icon, font=ctk.CTkFont(size=36)).pack(pady=(0, 6))
+    ctk.CTkLabel(f, text=title, font=ctk.CTkFont(size=14, weight="bold"),
+                 text_color=T.TEXT_SECONDARY).pack()
+    if subtitle:
+        ctk.CTkLabel(f, text=subtitle, font=ctk.CTkFont(size=11),
+                     text_color=T.TEXT_MUTED).pack(pady=(2, 0))
+    return f
 
 def _toast(w, msg, color=T.ACCENT):
     l = ctk.CTkLabel(w, text=msg, text_color=color, font=ctk.CTkFont(size=13, weight="bold"))
