@@ -24,7 +24,7 @@ class CalendarFrame(ctk.CTkFrame):
         _title(top, text=f"📅  {self.cname} — Yıllık Takvim").pack(side="left")
         ctk.CTkButton(top, text="◀", width=40, fg_color=T.CARD_BG,
                       hover_color=T.SIDEBAR_HOVER, command=lambda: self._nav(-1)).pack(side="right", padx=2)
-        self._yl = _lbl(top, str(self._year), size=16, bold=True, color=T.ACCENT)
+        self._yl = _lbl(top, str(self._year), size=20, bold=True, color=T.ACCENT)
         self._yl.pack(side="right", padx=8)
         ctk.CTkButton(top, text="▶", width=40, fg_color=T.CARD_BG,
                       hover_color=T.SIDEBAR_HOVER, command=lambda: self._nav(1)).pack(side="right", padx=2)
@@ -38,8 +38,9 @@ class CalendarFrame(ctk.CTkFrame):
             ("●", "Parazit yapıldı", T.BADGE_ORANGE),
             ("○", "Sonraki parazit", T.BADGE_YELLOW),
             ("★", "Randevu", T.BADGE_PINK),
+            ("🎂", "Doğum Günü", T.BADGE_PURPLE),
         ]:
-            _lbl(leg, f"{symbol} {desc}", size=10, color=color).pack(side="left", padx=(0, 14))
+            _lbl(leg, f"{symbol} {desc}", size=12, color=color).pack(side="left", padx=(0, 14))
 
         self._grid = ctk.CTkFrame(sc, fg_color="transparent")
         self._grid.pack(fill="both", expand=True, padx=16, pady=(0, 16))
@@ -58,6 +59,7 @@ class CalendarFrame(ctk.CTkFrame):
         applied = {}
         upcoming = {}
         specials = {}
+        birthdays = {}
 
         for v in db.get_vaccines(self.cid):
             self._add_date(applied, v[6], T.VACCINE_COLORS.get(v[2], T.BADGE_BLUE))
@@ -72,7 +74,15 @@ class CalendarFrame(ctk.CTkFrame):
         for a in db.get_appointments(self.cid):
             self._add_date(specials, a[2], T.BADGE_PINK)
 
-        return applied, upcoming, specials
+        cat = db.get_cat(self.cid)
+        if cat and cat[3]:
+            try:
+                bdate = datetime.strptime(cat[3], "%Y-%m-%d").date()
+                birthdays[(bdate.month, bdate.day)] = T.BADGE_PURPLE
+            except (ValueError, TypeError):
+                pass
+
+        return applied, upcoming, specials, birthdays
 
     def _add_date(self, d, ds, color):
         try:
@@ -86,7 +96,7 @@ class CalendarFrame(ctk.CTkFrame):
         for w in self._grid.winfo_children():
             w.destroy()
 
-        applied, upcoming, specials = self._collect_events()
+        applied, upcoming, specials, birthdays = self._collect_events()
         today = date.today()
         days_tr = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"]
 
@@ -141,10 +151,19 @@ class CalendarFrame(ctk.CTkFrame):
                     has_applied = key in applied
                     has_upcoming = key in upcoming
                     has_special = key in specials
+                    has_birthday = key in birthdays
                     r = 9  # daire yarıçapı
 
+                    # Doğum günü → mor dolgulu daire + 🎂 üstte
+                    if has_birthday:
+                        cv.create_oval(cx - r, cy - r, cx + r, cy + r,
+                                       fill=T.BADGE_PURPLE, outline="")
+                        cv.create_text(cx, cy, text=str(day), fill="#FFFFFF",
+                                       font=("Segoe UI", 9, "bold"))
+                        cv.create_text(cx, cy - r - 5, text="🎂",
+                                       font=("Segoe UI", 8))
                     # Bugün → yeşil dolu daire
-                    if is_today:
+                    elif is_today:
                         cv.create_oval(cx - r, cy - r, cx + r, cy + r, fill=T.ACCENT, outline="")
                         cv.create_text(cx, cy, text=str(day), fill="#FFFFFF",
                                        font=("Segoe UI", 9, "bold"))
@@ -170,12 +189,12 @@ class CalendarFrame(ctk.CTkFrame):
                                        font=("Segoe UI", 9, font_w))
 
                     # Aşı/parazit yapılan gün → altında küçük renkli nokta
-                    if has_applied:
+                    if has_applied and not has_birthday:
                         dot_color = applied[key][0]
                         cv.create_oval(cx - 2, cy + r + 1, cx + 2, cy + r + 5,
                                        fill=dot_color, outline="")
 
                     # Randevu → üstünde küçük yıldız
-                    if has_special and not has_applied and not has_upcoming:
+                    if has_special and not has_applied and not has_upcoming and not has_birthday:
                         cv.create_text(cx, cy - r - 3, text="★", fill=specials[key][0],
                                        font=("Segoe UI", 6))
