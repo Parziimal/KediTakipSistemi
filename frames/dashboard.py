@@ -9,7 +9,7 @@ except ImportError: HAS_PIL = False
 class DashboardFrame(ctk.CTkFrame):
     def __init__(self, parent, cid, cname, app=None, **kw):
         super().__init__(parent, fg_color="transparent", **kw)
-        self.cid, self.cname = cid, cname; self._build()
+        self.cid, self.cname, self.app = cid, cname, app; self._build()
 
     def _build(self):
         sc = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -66,18 +66,25 @@ class DashboardFrame(ctk.CTkFrame):
         app_count = len([a for a in db.get_appointments(self.cid) if a[6] == "Planlandı"])
         exp_total = sum(e[4] for e in db.get_expenses(self.cid))
 
-        for i, (icon, label, value, color) in enumerate([
-            ("💉", "Aşı", str(vaccine_count), T.BADGE_BLUE),
-            ("💊", "Aktif İlaç", str(med_count), T.BADGE_PURPLE),
-            ("📆", "Randevu", str(app_count), T.ACCENT_SECONDARY),
-            ("💰", "Harcama", f"{exp_total:,.0f} ₺", T.BADGE_YELLOW),
+        for i, (icon, label, value, color, target) in enumerate([
+            ("💉", "Aşı", str(vaccine_count), T.BADGE_BLUE, "vaccine"),
+            ("💊", "Aktif İlaç", str(med_count), T.BADGE_PURPLE, "medications"),
+            ("📆", "Randevu", str(app_count), T.ACCENT_SECONDARY, "appointments"),
+            ("💰", "Harcama", f"{exp_total:,.0f} ₺", T.BADGE_YELLOW, "expenses"),
         ]):
             sc_card = _card(summary_row, hover=True)
             sc_card.pack(side="left", fill="both", expand=True,
                          padx=(0 if i == 0 else 3, 3 if i < 3 else 0))
+            sc_card.configure(cursor="hand2")
             ctk.CTkLabel(sc_card, text=icon, font=ctk.CTkFont(size=20)).pack(anchor="w", padx=12, pady=(10, 0))
             _lbl(sc_card, value, size=18, bold=True, color=color).pack(anchor="w", padx=12, pady=(2, 0))
             _lbl(sc_card, label, size=10, color=T.TEXT_MUTED).pack(anchor="w", padx=12, pady=(0, 10))
+            # Tıklanınca ilgili bölüme git
+            if self.app:
+                sc_card.bind("<Button-1>", lambda e, t=target: self.app._show(t))
+                for child in sc_card.winfo_children():
+                    child.bind("<Button-1>", lambda e, t=target: self.app._show(t))
+                    child.configure(cursor="hand2")
 
         # Bölümler
         self._section(sc, "Yaklaşan Aşılar", self._items(db.get_vaccines, 7), "💉", "Henüz aşı kaydı yok", "Aşı Takvimi bölümünden ilk kaydı ekleyin")
