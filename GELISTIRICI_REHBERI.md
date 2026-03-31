@@ -5,8 +5,8 @@
 ```
 KediTakipSistemi/
 ├── main.py           # Uygulama girişi, App sınıfı, sidebar, header, tema, arama
-├── theme.py          # 3 tema paleti (Teal/Gece/Pastel) + set_theme() ile dinamik değişim
-├── constants.py      # Sabitler: ırklar, aşı kılavuzu (WSAVA/AAFP/AAHA), SECTIONS menü listesi
+├── theme.py          # 6 tema paleti (Teal/The Lab/Pastel/Clinical/Earth/GitHub) + set_theme() ile dinamik değişim
+├── constants.py      # Sabitler: ırklar, aşı kılavuzu (WSAVA/AAFP/AAHA/AAV), SECTIONS + SECTION_MAP + SECTION_GROUPS
 ├── database.py       # SQLite CRUD — 10 tablo + transaction() context manager
 ├── utils.py          # Yardımcı widget'lar: _card(), _btn(), _title(), _empty(), DatePicker
 ├── icon.py           # Otomatik kedi pati ikonu oluşturucu (.ico)
@@ -29,7 +29,9 @@ KediTakipSistemi/
     └── settings.py       # Ayarlar & Hakkında           [hayvan bağımsız]
 ```
 
-## Yeni Bölüm Ekleme (4 Adım)
+## Yeni Bölüm Ekleme (3 Adım)
+
+> **Not:** `SECTION_TITLES` main.py'de `SECTION_MAP`'ten otomatik türetilir — manuel eklemeye gerek yok.
 
 ### 1. frames/yeni_bolum.py oluştur:
 ```python
@@ -50,21 +52,20 @@ class YeniBolumFrame(ctk.CTkFrame):
         # ... içerik buraya
 ```
 
-### 2. frames/__init__.py'ye ekle:
+### 2. frames/__init__.py → FRAME_MAP'e ekle:
 ```python
 from frames.yeni_bolum import YeniBolumFrame
-# FRAME_MAP'e ekle:
+# FRAME_MAP içinde:
 "yeni_bolum": YeniBolumFrame,
 ```
 
-### 3. constants.py → SECTIONS listesine ekle:
+### 3. constants.py → SECTION_MAP + SECTION_GROUPS'a ekle:
 ```python
-("🆕  Yeni Bölüm", "yeni_bolum"),
-```
+# SECTION_MAP sözlüğüne:
+"yeni_bolum": ("🆕", "Yeni Bölüm"),
 
-### 4. main.py → SECTION_TITLES'a ekle:
-```python
-"yeni_bolum": "Yeni Bölüm",
+# SECTION_GROUPS içindeki ilgili gruba (örn. "Bilgi" grubuna):
+("Bilgi", ["guide", "stats", "vets", "settings", "yeni_bolum"]),
 ```
 
 ### Hayvan Bağımsız Bölüm (stats/vets/settings gibi):
@@ -98,6 +99,8 @@ with db.transaction() as c:
 
 ## Tema Sistemi
 
+Mevcut 6 tema: `"green"` (Teal) · `"lab"` (The Lab) · `"pink"` (Pastel) · `"clinical"` (Clinical) · `"earth"` (Earth) · `"github"` (GitHub)
+
 theme.py'deki THEMES sözlüğüne yeni tema ekle:
 ```python
 "mavi": {
@@ -110,7 +113,7 @@ theme.py'deki THEMES sözlüğüne yeni tema ekle:
     "BTN_TEXT": "#...",
 },
 ```
-Küre otomatik eklenir (main.py ve settings.py THEMES üzerinde döner).
+Küre otomatik eklenir (settings.py THEMES üzerinde döner).
 
 ## Widget Kılavuzu (utils.py)
 

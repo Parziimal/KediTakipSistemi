@@ -8,11 +8,11 @@ Python + CustomTkinter + SQLite3 masaüstü uygulaması. Kedi, köpek ve kuş i�
 - Windows 11, dark theme
 
 ## Mimari
-Modüler yapı: main.py (App sınıfı + sidebar) → frames/ (15 bölüm her biri ayrı dosya) → database.py (CRUD) → theme.py (3 dinamik tema)
+Modüler yapı: main.py (App sınıfı + sidebar) → frames/ (15 bölüm her biri ayrı dosya) → database.py (CRUD) → theme.py (6 dinamik tema)
 
 ## Önemli Dosyalar
-- `theme.py`: 3 tema (Teal/Gece/Pastel), `set_theme()` ile runtime değişim
-- `constants.py`: WSAVA 2024 & AAFP 2020 & AAHA 2022 aşı verileri, ırk/renk/kategori listeleri, SECTIONS menüsü
+- `theme.py`: 6 tema (Teal / The Lab / Pastel / Clinical / Earth / GitHub), `set_theme()` ile runtime değişim
+- `constants.py`: WSAVA 2024 & AAFP 2020 & AAHA 2022 & AAV aşı verileri, ırk/renk/kategori listeleri, SECTIONS + SECTION_MAP + SECTION_GROUPS menü yapısı
 - `database.py`: 10 tablo (cats, vaccines, parasite_logs, weight_logs, health_notes, expenses, vets, medications, appointments, gallery) + search_all() + `transaction()` context manager
 - `utils.py`: _card() hover efektli, _btn() tema uyumlu, _empty() boş durum ekranı, DatePicker widget (tarih validasyonlu)
 - `frames/__init__.py`: FRAME_MAP sözlüğü tüm 15 bölümü eşler
@@ -46,7 +46,8 @@ Bağımsız bölümler `_show()` içinde `key in ("stats", "vets", "settings")` 
 - Token tasarrufu önemli: kısa cevaplar, toplu işlem
 
 ## Geliştirme Notları
-- Yeni bölüm: frames/yeni.py + __init__.py + constants.py SECTIONS + main.py SECTION_TITLES
+- Yeni bölüm (3 adım): frames/yeni.py → frames/__init__.py FRAME_MAP → constants.py SECTION_MAP + SECTION_GROUPS
+  - `SECTION_TITLES` main.py'de `SECTION_MAP`'ten **otomatik** türetilir, manuel eklemeye gerek yok
 - Hayvan bağımsız bölüm eklenirse main.py `_show()` içindeki `("stats", "vets", "settings")` tuple'ına ekle
 - DB şema değişikliğinde kedi_bakim.db silinip yeniden oluşturulabilir (CREATE IF NOT EXISTS)
 - `GELISTIRICI_REHBERI.md` dosyasında detaylı şablonlar var

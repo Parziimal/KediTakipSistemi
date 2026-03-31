@@ -17,7 +17,7 @@ import customtkinter as ctk
 import theme as T
 import database as db
 from icon import set_app_icon
-from constants import SECTIONS
+from constants import SECTION_MAP, SECTION_GROUPS
 from frames import FRAME_MAP
 
 try:
@@ -31,14 +31,7 @@ ctk.set_default_color_theme("green")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Bölüm başlık haritası
-SECTION_TITLES = {
-    "dashboard": "Pano", "profile": "Profil", "vaccine": "Aşı Takvimi",
-    "calendar": "Yıllık Takvim", "guide": "Aşı Rehberi", "parasite": "Parazit Takvimi",
-    "medications": "İlaç Takibi", "appointments": "Randevular", "nutrition": "Beslenme & Kilo",
-    "health": "Sağlık Notları", "expenses": "Harcamalar", "stats": "İstatistikler",
-    "vets": "Veterinerler", "gallery": "Galeri", "settings": "Ayarlar",
-}
+SECTION_TITLES = {k: v[1] for k, v in SECTION_MAP.items()}
 
 
 class App(ctk.CTk):
@@ -58,97 +51,151 @@ class App(ctk.CTk):
 
     # ── Ana Düzen ────────────────────────────────────────────────────────────
     def _build_layout(self, initial_section="dashboard"):
-        # Sidebar
+        # ── Sidebar ──────────────────────────────────────────────────────────
         self.sidebar = ctk.CTkFrame(self, width=220, fg_color=T.SIDEBAR_BG, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
-        # Logo / başlık
+        # Logo
         logo_f = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        logo_f.pack(fill="x", padx=14, pady=(18, 10))
-        ctk.CTkLabel(logo_f, text="🐾", font=ctk.CTkFont(size=26)).pack(side="left", padx=(2, 6))
-        ctk.CTkLabel(logo_f, text="Hayvan Takip", font=ctk.CTkFont(size=17, weight="bold"),
+        logo_f.pack(fill="x", padx=14, pady=(16, 8))
+        ctk.CTkLabel(logo_f, text="🐾", font=ctk.CTkFont(size=24)).pack(side="left", padx=(2, 6))
+        ctk.CTkLabel(logo_f, text="Hayvan Takip", font=ctk.CTkFont(size=16, weight="bold"),
                      text_color=T.ACCENT).pack(side="left")
 
-        # Ayırıcı çizgi
-        ctk.CTkFrame(self.sidebar, height=1, fg_color=T.BORDER).pack(fill="x", padx=14, pady=(0, 10))
+        ctk.CTkFrame(self.sidebar, height=1, fg_color=T.BORDER).pack(fill="x", padx=14, pady=(0, 8))
 
-        # Hayvan listesi başlığı
+        # ── Hayvan listesi ────────────────────────────────────────────────────
         self.cat_var = ctk.StringVar()
         self._pet_btns = {}
 
         pet_hdr = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         pet_hdr.pack(fill="x", padx=12, pady=(0, 3))
-        ctk.CTkLabel(pet_hdr, text="Hayvanlar", font=ctk.CTkFont(size=11),
+        ctk.CTkLabel(pet_hdr, text="HAYVANLAR", font=ctk.CTkFont(size=10),
                      text_color=T.TEXT_MUTED).pack(side="left")
-        ctk.CTkButton(pet_hdr, text="Sil", width=36, height=22, fg_color=T.SIDEBAR_HOVER,
-                      hover_color=T.ERROR, font=ctk.CTkFont(size=10),
-                      command=self._del_cat).pack(side="right", padx=(3, 0))
-        ctk.CTkButton(pet_hdr, text="+ Yeni", width=52, height=22, fg_color=T.ACCENT,
-                      hover_color=T.ACCENT_HOVER, text_color=T.BTN_TEXT,
-                      font=ctk.CTkFont(size=10, weight="bold"),
+        ctk.CTkButton(pet_hdr, text="+ Yeni", width=52, height=22,
+                      fg_color=T.ACCENT, hover_color=T.ACCENT_HOVER,
+                      text_color=T.BTN_TEXT, font=ctk.CTkFont(size=10, weight="bold"),
                       command=self._add_cat).pack(side="right")
 
-        # Hayvan listesi (içerik kadar büyür)
-        self._pet_list_frame = ctk.CTkFrame(
-            self.sidebar, fg_color=T.CARD_BG, corner_radius=8)
-        self._pet_list_frame.pack(fill="x", padx=12, pady=(0, 10))
+        self._pet_list_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        self._pet_list_frame.pack(fill="x", padx=8, pady=(0, 8))
 
-        # Arama kutusu
-        search_f = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        search_f.pack(fill="x", padx=12, pady=(0, 8))
+        # ── Arama ────────────────────────────────────────────────────────────
+        search_f = ctk.CTkFrame(self.sidebar, fg_color=T.CARD_BG, corner_radius=8)
+        search_f.pack(fill="x", padx=12, pady=(0, 6))
         self.search_var = ctk.StringVar()
-        se = ctk.CTkEntry(search_f, textvariable=self.search_var, width=160,
-                          placeholder_text="Ara...", height=30,
-                          font=ctk.CTkFont(size=12))
-        se.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        se = ctk.CTkEntry(search_f, textvariable=self.search_var,
+                          placeholder_text="Kayıtlarda ara...", height=30, border_width=0,
+                          fg_color="transparent", font=ctk.CTkFont(size=12))
+        se.pack(side="left", fill="x", expand=True, padx=(8, 0))
         se.bind("<Return>", lambda e: self._search())
-        ctk.CTkButton(search_f, text="🔍", width=34, height=30, fg_color=T.ACCENT,
-                      hover_color=T.ACCENT_HOVER, text_color=T.BTN_TEXT,
-                      font=ctk.CTkFont(size=14), command=self._search).pack(side="right")
+        ctk.CTkButton(search_f, text="🔍", width=30, height=30,
+                      fg_color="transparent", hover_color=T.SIDEBAR_HOVER,
+                      text_color=T.ACCENT, font=ctk.CTkFont(size=14),
+                      command=self._search).pack(side="right", padx=2)
 
-        # Ayırıcı çizgi
-        ctk.CTkFrame(self.sidebar, height=1, fg_color=T.BORDER).pack(fill="x", padx=14, pady=(0, 6))
+        ctk.CTkFrame(self.sidebar, height=1, fg_color=T.BORDER).pack(fill="x", padx=14, pady=(0, 4))
 
-        # Menü butonları
+        # ── Gruplu / katlanabilir menü ────────────────────────────────────────
         self._menu_btns = {}
-        menu_sc = ctk.CTkScrollableFrame(self.sidebar, fg_color="transparent")
+        self._menu_indicators = {}
+        self._group_expanded = {}
+        self._group_containers = {}
+
+        menu_sc = ctk.CTkScrollableFrame(self.sidebar, fg_color="transparent",
+                                         scrollbar_button_color=T.BORDER,
+                                         scrollbar_button_hover_color=T.SIDEBAR_HOVER)
         menu_sc.pack(fill="both", expand=True, padx=0, pady=0)
 
-        for label, key in SECTIONS:
-            b = ctk.CTkButton(
-                menu_sc, text=label, anchor="w", height=34,
-                fg_color="transparent", hover_color=T.SIDEBAR_HOVER,
-                text_color=T.TEXT_SECONDARY, font=ctk.CTkFont(size=13),
-                command=lambda k=key: self._show(k))
-            b.pack(fill="x", padx=8, pady=1)
-            self._menu_btns[key] = b
+        for group_name, keys in SECTION_GROUPS:
+            # İlk grup (Hayvan) açık, diğerleri kapalı
+            expanded = (group_name == "Hayvan")
+            self._group_expanded[group_name] = expanded
 
-        # Alt bilgi
-        ctk.CTkLabel(self.sidebar, text="v4.5  ·  WSAVA 2024", font=ctk.CTkFont(size=9),
-                     text_color=T.TEXT_MUTED).pack(side="bottom", pady=6)
+            # Grup başlığı — tıklanabilir
+            hdr = ctk.CTkFrame(menu_sc, fg_color="transparent", cursor="hand2")
+            hdr.pack(fill="x", padx=6, pady=(6, 0))
 
-        # Tema küreleri
-        orb_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        orb_frame.pack(side="bottom", pady=(0, 2))
-        for tkey, tdata in T.THEMES.items():
-            b = ctk.CTkButton(orb_frame, text="", width=24, height=24,
-                              corner_radius=12, fg_color=tdata["orb"],
-                              hover_color=tdata["ACCENT_HOVER"],
-                              command=lambda k=tkey: self._change_theme(k))
-            b.pack(side="left", padx=3)
+            arrow_lbl = ctk.CTkLabel(hdr, text="▾" if expanded else "›",
+                                     font=ctk.CTkFont(size=10, weight="bold"),
+                                     text_color=T.TEXT_MUTED, width=14)
+            arrow_lbl.pack(side="left", padx=(6, 2))
+            ctk.CTkLabel(hdr, text=group_name.upper(),
+                         font=ctk.CTkFont(size=9, weight="bold"),
+                         text_color=T.TEXT_MUTED).pack(side="left")
 
-        # Yedekleme butonu
-        ctk.CTkButton(self.sidebar, text="💾 Yedekle", width=100, height=26,
+            # İçerik konteyneri
+            container = ctk.CTkFrame(menu_sc, fg_color="transparent")
+            if expanded:
+                container.pack(fill="x", pady=(1, 0))
+            self._group_containers[group_name] = container
+
+            # Tıklama işlevi (closure)
+            def _make_toggle(gname, cont, arrow):
+                def toggle(e=None):
+                    if self._group_expanded[gname]:
+                        cont.pack_forget()
+                        arrow.configure(text="›")
+                        self._group_expanded[gname] = False
+                    else:
+                        # Konteyneri doğru yere ekle (kendi grubunun altına)
+                        cont.pack(fill="x", pady=(1, 0),
+                                  after=arrow.master)
+                        arrow.configure(text="▾")
+                        self._group_expanded[gname] = True
+                return toggle
+
+            fn = _make_toggle(group_name, container, arrow_lbl)
+            hdr.bind("<Button-1>", fn)
+            arrow_lbl.bind("<Button-1>", fn)
+            for child in hdr.winfo_children():
+                child.bind("<Button-1>", fn)
+
+            # Menü butonları (konteynerin içine)
+            for key in keys:
+                icon, label = SECTION_MAP[key]
+
+                row = ctk.CTkFrame(container, fg_color="transparent", corner_radius=7)
+                row.pack(fill="x", padx=6, pady=1)
+
+                ind = ctk.CTkFrame(row, width=3, height=32, fg_color="transparent", corner_radius=2)
+                ind.pack(side="left", padx=(2, 0))
+                ind.pack_propagate(False)
+
+                btn = ctk.CTkButton(
+                    row, text=f"{icon}  {label}", anchor="w", height=32,
+                    fg_color="transparent", hover_color=T.SIDEBAR_HOVER,
+                    text_color=T.TEXT_SECONDARY, font=ctk.CTkFont(size=12),
+                    command=lambda k=key: self._show(k))
+                btn.pack(side="left", fill="x", expand=True, padx=(2, 4))
+
+                self._menu_btns[key] = btn
+                self._menu_indicators[key] = ind
+
+        # ── Alt kısım ─────────────────────────────────────────────────────────
+        bottom = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        bottom.pack(side="bottom", fill="x", padx=12, pady=(4, 10))
+
+        # Yedekle + Tema butonu yan yana
+        ctk.CTkButton(bottom, text="💾 Yedekle", height=28,
                       fg_color=T.SIDEBAR_HOVER, hover_color=T.ACCENT_DARK,
-                      font=ctk.CTkFont(size=10), command=self._backup).pack(side="bottom", pady=(0, 4))
+                      text_color=T.TEXT_SECONDARY, font=ctk.CTkFont(size=11),
+                      command=self._backup).pack(side="left", fill="x", expand=True, padx=(0, 4))
 
-        # Sağ taraf: header + content
+        ctk.CTkButton(bottom, text="🎨", width=32, height=28,
+                      fg_color=T.SIDEBAR_HOVER, hover_color=T.ACCENT_DARK,
+                      text_color=T.TEXT_SECONDARY, font=ctk.CTkFont(size=14),
+                      command=lambda: self._show("settings")).pack(side="right")
+
+        ctk.CTkLabel(self.sidebar, text="v4.5  ·  WSAVA 2024",
+                     font=ctk.CTkFont(size=9), text_color=T.TEXT_MUTED).pack(side="bottom", pady=(0, 4))
+
+        # ── Sağ alan ─────────────────────────────────────────────────────────
         right = ctk.CTkFrame(self, fg_color=T.MAIN_BG, corner_radius=0)
         right.pack(side="right", fill="both", expand=True)
         self._right = right
 
-        # Üst bilgi çubuğu
         self.header = ctk.CTkFrame(right, height=48, fg_color=T.CARD_BG, corner_radius=0)
         self.header.pack(fill="x")
         self.header.pack_propagate(False)
@@ -158,29 +205,23 @@ class App(ctk.CTk):
                                             text_color=T.TEXT_PRIMARY)
         self._header_section.pack(side="left", padx=20)
 
-        self._header_sep = ctk.CTkLabel(self.header, text="›",
-                                        font=ctk.CTkFont(size=14),
-                                        text_color=T.TEXT_MUTED)
-        self._header_sep.pack(side="left", padx=4)
+        ctk.CTkLabel(self.header, text="›", font=ctk.CTkFont(size=14),
+                     text_color=T.TEXT_MUTED).pack(side="left", padx=4)
 
         self._header_cat = ctk.CTkLabel(self.header, text="",
                                         font=ctk.CTkFont(size=13),
                                         text_color=T.ACCENT)
         self._header_cat.pack(side="left")
 
-        # Sağ tarafta tarih
         ctk.CTkLabel(self.header, text=date.today().strftime("%d %B %Y"),
                      font=ctk.CTkFont(size=11),
                      text_color=T.TEXT_MUTED).pack(side="right", padx=20)
 
-        # İnce ayırıcı
         ctk.CTkFrame(right, height=1, fg_color=T.BORDER).pack(fill="x")
 
-        # Ana içerik alanı
         self.content = ctk.CTkFrame(right, fg_color=T.MAIN_BG, corner_radius=0)
         self.content.pack(fill="both", expand=True)
 
-        # Başlangıç
         self._load_cats()
         self._show(initial_section)
 
@@ -188,8 +229,8 @@ class App(ctk.CTk):
         title = SECTION_TITLES.get(section_key, section_key)
         self._header_section.configure(text=title)
         cname = self._get_cname()
-        if section_key in ("stats", "vets"):
-            self._header_cat.configure(text="Tümü")
+        if section_key in ("stats", "vets", "settings"):
+            self._header_cat.configure(text="")
         elif cname:
             self._header_cat.configure(text=cname)
         else:
@@ -209,7 +250,7 @@ class App(ctk.CTk):
         if not cats:
             ctk.CTkLabel(self._pet_list_frame, text="Henüz hayvan yok",
                          font=ctk.CTkFont(size=11),
-                         text_color=T.TEXT_MUTED).pack(pady=6)
+                         text_color=T.TEXT_MUTED).pack(pady=6, padx=8)
             self.cat_var.set("")
             return
 
@@ -217,17 +258,27 @@ class App(ctk.CTk):
             cid, name = c[0], c[1]
             ptype = c[2] if len(c) > 2 else "cat"
             emoji = self._PET_EMOJIS.get(ptype, "🐾")
+
+            row = ctk.CTkFrame(self._pet_list_frame, fg_color="transparent", corner_radius=6)
+            row.pack(fill="x", pady=1)
+
             btn = ctk.CTkButton(
-                self._pet_list_frame, text=f"{emoji}  {name}",
-                anchor="w", height=28, corner_radius=6,
+                row, text=f"{emoji}  {name}", anchor="w", height=28, corner_radius=6,
                 fg_color="transparent", hover_color=T.SIDEBAR_HOVER,
                 text_color=T.TEXT_SECONDARY, font=ctk.CTkFont(size=12),
-                command=lambda cid=cid, name=name: self._select_pet(cid, name)
-            )
-            btn.pack(fill="x", padx=4, pady=2)
+                command=lambda c=cid, n=name: self._select_pet(c, n))
+            btn.pack(side="left", fill="x", expand=True)
+
+            # × butonu — her zaman görünür, hover'da kırmızı
+            del_btn = ctk.CTkButton(
+                row, text="×", width=22, height=22, corner_radius=4,
+                fg_color="transparent", hover_color=T.ERROR,
+                text_color=T.TEXT_MUTED, font=ctk.CTkFont(size=15, weight="bold"),
+                command=lambda c=cid, n=name: self._del_cat_by(c, n))
+            del_btn.pack(side="right", padx=(0, 2))
+
             self._pet_btns[cid] = btn
 
-        # Mevcut seçimi koru ya da ilk hayvanı seç
         current_name = self.cat_var.get()
         current_cid = self._cats.get(current_name)
         if current_cid and current_cid in self._pet_btns:
@@ -251,8 +302,7 @@ class App(ctk.CTk):
                 btn.configure(fg_color="transparent", text_color=T.TEXT_SECONDARY)
 
     def _get_cid(self):
-        name = self.cat_var.get()
-        return self._cats.get(name)
+        return self._cats.get(self.cat_var.get())
 
     def _get_cname(self):
         return self.cat_var.get()
@@ -306,31 +356,35 @@ class App(ctk.CTk):
         dlg.after(100, name_entry.focus_set)
         dlg.bind("<Return>", lambda e: on_ok())
 
-    def _del_cat(self):
-        cid = self._get_cid()
-        if not cid:
-            return
-        name = self._get_cname()
-        if messagebox.askyesno("Hayvan Sil", f"'{name}' ve tüm kayıtları silinecek.\nEmin misiniz?", parent=self):
+    def _del_cat_by(self, cid, name):
+        if messagebox.askyesno("Hayvan Sil",
+                               f"'{name}' ve tüm kayıtları silinecek.\nEmin misiniz?",
+                               parent=self):
             db.delete_cat(cid)
             self._load_cats()
             self._show("dashboard")
 
     # ── Bölüm göster ─────────────────────────────────────────────────────────
     def _show(self, key):
-        # Menü vurgulama
+        # Menü vurgulama + sol çubuk göstergesi
         for k, b in self._menu_btns.items():
+            ind = self._menu_indicators.get(k)
             if k == key:
-                b.configure(fg_color=T.SIDEBAR_ACTIVE, text_color=T.ACCENT)
+                b.configure(fg_color=T.SIDEBAR_ACTIVE, text_color=T.ACCENT,
+                            font=ctk.CTkFont(size=12, weight="bold"))
+                if ind:
+                    ind.configure(fg_color=T.ACCENT)
             else:
-                b.configure(fg_color="transparent", text_color=T.TEXT_SECONDARY)
+                b.configure(fg_color="transparent", text_color=T.TEXT_SECONDARY,
+                            font=ctk.CTkFont(size=12, weight="normal"))
+                if ind:
+                    ind.configure(fg_color="transparent")
 
         self._current_section = key
         self._update_header(key)
 
         old_frame = self._current_frame
 
-        # Yeni frame oluştur
         frame_cls = FRAME_MAP.get(key)
         if frame_cls is None:
             new_frame = ctk.CTkFrame(self.content, fg_color="transparent")
@@ -345,7 +399,6 @@ class App(ctk.CTk):
         cid = self._get_cid()
         cname = self._get_cname()
 
-        # Hayvan bağımsız bölümler
         if key in ("stats", "vets", "settings"):
             new_frame = frame_cls(self.content, app=self)
         elif cid:
@@ -355,7 +408,6 @@ class App(ctk.CTk):
             _empty_state(new_frame, "🐾", "Henüz hayvan eklenmemiş",
                          "Soldaki '+ Yeni' butonu ile ilk hayvanınızı ekleyin")
 
-        # Önce yeni frame'i göster, sonra eskiyi sil — beyaz flaş önlenir
         new_frame.pack(fill="both", expand=True)
         self._current_frame = new_frame
         if old_frame:
@@ -370,8 +422,13 @@ class App(ctk.CTk):
         if not cid:
             return
 
-        for b in self._menu_btns.values():
-            b.configure(fg_color="transparent", text_color=T.TEXT_SECONDARY)
+        for k, b in self._menu_btns.items():
+            b.configure(fg_color="transparent", text_color=T.TEXT_SECONDARY,
+                        font=ctk.CTkFont(size=12, weight="normal"))
+            ind = self._menu_indicators.get(k)
+            if ind:
+                ind.configure(fg_color="transparent")
+
         self._current_section = None
         self._header_section.configure(text="Arama")
         self._header_cat.configure(text=f"\"{q}\"")
@@ -415,11 +472,9 @@ class App(ctk.CTk):
                          text_color=T.TEXT_MUTED).pack(side="left", padx=4)
 
     def refresh_sidebar(self):
-        """Profil kaydedilince sidebar'ı güncelle (isim değişebilir)."""
         self._load_cats()
 
     def on_cat_deleted(self):
-        """Profil ekranından hayvan silinince listeyi güncelle."""
         self._load_cats()
         self._show("dashboard")
 
@@ -441,8 +496,7 @@ class App(ctk.CTk):
         if not dest:
             return
         ts = date.today().isoformat()
-        backup_name = f"kedi_bakim_yedek_{ts}.db"
-        backup_path = os.path.join(dest, backup_name)
+        backup_path = os.path.join(dest, f"hayvan_bakim_yedek_{ts}.db")
         try:
             shutil.copy2(db.DB_PATH, backup_path)
             messagebox.showinfo("Yedekleme", f"Yedek kaydedildi:\n{backup_path}", parent=self)
@@ -451,7 +505,6 @@ class App(ctk.CTk):
 
 
 def _empty_state(parent, icon, title, subtitle):
-    """Boş durum ekranı — güzel görsel + yönlendirme."""
     f = ctk.CTkFrame(parent, fg_color="transparent")
     f.pack(expand=True)
     ctk.CTkLabel(f, text=icon, font=ctk.CTkFont(size=48)).pack(pady=(30, 8))

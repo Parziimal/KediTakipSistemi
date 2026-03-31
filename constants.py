@@ -299,3 +299,29 @@ SECTIONS = [
     ("🖼  Galeri",            "gallery"),
     ("⚙  Ayarlar",           "settings"),
 ]
+
+# Sidebar menü gruplandırması
+SECTION_MAP = {
+    "dashboard":    ("🏠", "Pano"),
+    "profile":      ("👤", "Profil"),
+    "gallery":      ("🖼", "Galeri"),
+    "vaccine":      ("💉", "Aşı Takvimi"),
+    "parasite":     ("🐛", "Parazit Takvimi"),
+    "medications":  ("💊", "İlaç Takibi"),
+    "appointments": ("📆", "Randevular"),
+    "health":       ("🏥", "Sağlık Notları"),
+    "nutrition":    ("🍖", "Beslenme & Kilo"),
+    "expenses":     ("💰", "Harcamalar"),
+    "calendar":     ("📅", "Yıllık Takvim"),
+    "guide":        ("📋", "Aşı Rehberi"),
+    "stats":        ("📊", "İstatistikler"),
+    "vets":         ("🩺", "Veterinerler"),
+    "settings":     ("⚙", "Ayarlar"),
+}
+
+SECTION_GROUPS = [
+    ("Hayvan",  ["dashboard", "profile", "gallery"]),
+    ("Sağlık",  ["vaccine", "parasite", "medications", "appointments", "health"]),
+    ("Takip",   ["nutrition", "expenses", "calendar"]),
+    ("Bilgi",   ["guide", "stats", "vets", "settings"]),
+]
