@@ -1,5 +1,5 @@
 """
-Kedi Bakım Takip Uygulaması  v4.0
+Hayvan Bakım Takip Uygulaması  v4.5
 WSAVA 2024 & AAFP 2020 Entegreli
 
 Gereksinimler:
@@ -37,14 +37,14 @@ SECTION_TITLES = {
     "calendar": "Yıllık Takvim", "guide": "Aşı Rehberi", "parasite": "Parazit Takvimi",
     "medications": "İlaç Takibi", "appointments": "Randevular", "nutrition": "Beslenme & Kilo",
     "health": "Sağlık Notları", "expenses": "Harcamalar", "stats": "İstatistikler",
-    "vets": "Veterinerler",
+    "vets": "Veterinerler", "gallery": "Galeri", "settings": "Ayarlar",
 }
 
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Kedi Bakım Takip Sistemi v4.0")
+        self.title("Hayvan Bakım Takip Sistemi v4.5")
         self.geometry("1200x750")
         self.minsize(960, 600)
         self.configure(fg_color=T.MAIN_BG)
@@ -57,7 +57,7 @@ class App(ctk.CTk):
         self._build_layout()
 
     # ── Ana Düzen ────────────────────────────────────────────────────────────
-    def _build_layout(self):
+    def _build_layout(self, initial_section="dashboard"):
         # Sidebar
         self.sidebar = ctk.CTkFrame(self, width=220, fg_color=T.SIDEBAR_BG, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
@@ -125,7 +125,7 @@ class App(ctk.CTk):
             self._menu_btns[key] = b
 
         # Alt bilgi
-        ctk.CTkLabel(self.sidebar, text="v4.0  ·  WSAVA 2024", font=ctk.CTkFont(size=9),
+        ctk.CTkLabel(self.sidebar, text="v4.5  ·  WSAVA 2024", font=ctk.CTkFont(size=9),
                      text_color=T.TEXT_MUTED).pack(side="bottom", pady=6)
 
         # Tema küreleri
@@ -182,7 +182,7 @@ class App(ctk.CTk):
 
         # Başlangıç
         self._load_cats()
-        self._show("dashboard")
+        self._show(initial_section)
 
     def _update_header(self, section_key):
         title = SECTION_TITLES.get(section_key, section_key)
@@ -328,35 +328,38 @@ class App(ctk.CTk):
         self._current_section = key
         self._update_header(key)
 
-        # Eski frame'i kaldır
-        if self._current_frame:
-            self._current_frame.destroy()
+        old_frame = self._current_frame
 
         # Yeni frame oluştur
         frame_cls = FRAME_MAP.get(key)
         if frame_cls is None:
-            self._current_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-            self._current_frame.pack(fill="both", expand=True)
-            ctk.CTkLabel(self._current_frame, text="Bölüm bulunamadı.",
+            new_frame = ctk.CTkFrame(self.content, fg_color="transparent")
+            ctk.CTkLabel(new_frame, text="Bölüm bulunamadı.",
                          text_color=T.TEXT_MUTED).pack(pady=40)
+            new_frame.pack(fill="both", expand=True)
+            self._current_frame = new_frame
+            if old_frame:
+                old_frame.destroy()
             return
 
         cid = self._get_cid()
         cname = self._get_cname()
 
-        # stats ve vets kedi bağımsız
-        if key in ("stats", "vets"):
-            self._current_frame = frame_cls(self.content, app=self)
+        # Hayvan bağımsız bölümler
+        if key in ("stats", "vets", "settings"):
+            new_frame = frame_cls(self.content, app=self)
         elif cid:
-            self._current_frame = frame_cls(self.content, cid=cid, cname=cname, app=self)
+            new_frame = frame_cls(self.content, cid=cid, cname=cname, app=self)
         else:
-            self._current_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-            self._current_frame.pack(fill="both", expand=True)
-            _empty_state(self._current_frame, "🐾", "Henüz hayvan eklenmemiş",
+            new_frame = ctk.CTkFrame(self.content, fg_color="transparent")
+            _empty_state(new_frame, "🐾", "Henüz hayvan eklenmemiş",
                          "Soldaki '+ Yeni' butonu ile ilk hayvanınızı ekleyin")
-            return
 
-        self._current_frame.pack(fill="both", expand=True)
+        # Önce yeni frame'i göster, sonra eskiyi sil — beyaz flaş önlenir
+        new_frame.pack(fill="both", expand=True)
+        self._current_frame = new_frame
+        if old_frame:
+            old_frame.destroy()
 
     # ── Arama ────────────────────────────────────────────────────────────────
     def _search(self):
@@ -424,12 +427,13 @@ class App(ctk.CTk):
     def _change_theme(self, theme_key):
         if T.get_current() == theme_key:
             return
+        restore_section = self._current_section or "dashboard"
         T.set_theme(theme_key)
         self.sidebar.destroy()
         self._right.destroy()
         self.configure(fg_color=T.MAIN_BG)
         self._current_frame = None
-        self._build_layout()
+        self._build_layout(restore_section)
 
     # ── Yedekleme ────────────────────────────────────────────────────────────
     def _backup(self):

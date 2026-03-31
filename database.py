@@ -2,13 +2,39 @@
 
 import os
 import sqlite3
+from contextlib import contextmanager
 from datetime import date
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kedi_bakim.db")
 
 
 def _conn():
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+@contextmanager
+def transaction():
+    """Çok adımlı işlemler için atomik transaction context manager.
+
+    Kullanım::
+
+        with db.transaction() as c:
+            c.execute("INSERT INTO cats (name) VALUES (?)", ("Boncuk",))
+            c.execute("INSERT INTO health_notes ...")
+        # Herhangi bir exception olursa otomatik rollback yapılır.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def init_db():
@@ -87,16 +113,21 @@ def init_db():
         try:
             c.execute("ALTER TABLE cats ADD COLUMN pet_type TEXT DEFAULT 'cat'")
             c.commit()
-        except Exception:
-            pass  # Zaten var
-        c.execute("PRAGMA foreign_keys = ON")
-        if c.execute("SELECT COUNT(*) FROM cats").fetchone()[0] == 0:
-            c.executemany("INSERT INTO cats (name) VALUES (?)", [("Loki",), ("Yuumi",)])
-            yid = c.execute("SELECT id FROM cats WHERE name='Yuumi'").fetchone()[0]
-            c.execute(
-                "INSERT INTO health_notes (cat_id,note_date,title,content,note_type) VALUES (?,?,?,?,?)",
-                (yid, date.today().isoformat(), "Mide Ameliyatı — Geçmiş Kayıt",
-                 "Yuumi'nin mide ameliyatı detaylarını buraya ekleyin.", "Ameliyat"))
+        except sqlite3.OperationalError:
+            pass  # Kolon zaten mevcut
+        # Performans için indeksler (tekrar çalıştırılabilir)
+        c.executescript("""
+            CREATE INDEX IF NOT EXISTS idx_vaccines_cat   ON vaccines(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_parasite_cat   ON parasite_logs(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_weight_cat     ON weight_logs(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_health_cat     ON health_notes(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_expenses_cat   ON expenses(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_meds_cat       ON medications(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_appt_cat       ON appointments(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_gallery_cat    ON gallery(cat_id);
+            CREATE INDEX IF NOT EXISTS idx_vaccines_date  ON vaccines(applied_date);
+            CREATE INDEX IF NOT EXISTS idx_appt_date      ON appointments(app_date);
+        """)
         c.commit()
 
 
@@ -230,6 +261,9 @@ def get_gallery(cid):
 
 def add_gallery_photo(cid,path,caption):
     with _conn() as c: c.execute("INSERT INTO gallery(cat_id,photo_path,caption,added_date)VALUES(?,?,?,?)",(cid,path,caption,date.today().isoformat()))
+
+def update_gallery_caption(gid, caption):
+    with _conn() as c: c.execute("UPDATE gallery SET caption=? WHERE id=?", (caption, gid))
 
 def delete_gallery_photo(gid):
     with _conn() as c: c.execute("DELETE FROM gallery WHERE id=?",(gid,))

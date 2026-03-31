@@ -1,5 +1,6 @@
 """Yardımcı fonksiyonlar ve widget'lar."""
 
+import calendar
 import csv
 import os
 import shutil
@@ -131,7 +132,20 @@ class DatePicker(ctk.CTkFrame):
         ctk.CTkComboBox(self, variable=self.d, values=[f"{i:02d}" for i in range(1,32)],
                         width=62, font=ctk.CTkFont(size=12)).pack(side="left", padx=2)
 
-    def get(self): return f"{self.y.get()}-{self.m.get()}-{self.d.get()}"
+    def get(self):
+        """Geçerli tarihi YYYY-MM-DD formatında döner.
+        Geçersiz günleri (Şubat 31 gibi) otomatik olarak ayın son gününe sabitler."""
+        try:
+            y, m, d = int(self.y.get()), int(self.m.get()), int(self.d.get())
+        except (ValueError, TypeError):
+            return date.today().isoformat()
+        max_day = calendar.monthrange(y, m)[1]
+        d = min(d, max_day)
+        try:
+            date(y, m, d)  # Son geçerlilik kontrolü
+        except ValueError:
+            return date.today().isoformat()
+        return f"{y:04d}-{m:02d}-{d:02d}"
 
     def set(self, ds):
         try:

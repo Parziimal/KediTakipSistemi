@@ -296,4 +296,6 @@ SECTIONS = [
     ("💰  Harcamalar",        "expenses"),
     ("📊  İstatistikler",     "stats"),
     ("🏥  Veterinerler",      "vets"),
+    ("🖼  Galeri",            "gallery"),
+    ("⚙  Ayarlar",           "settings"),
 ]

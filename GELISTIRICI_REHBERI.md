@@ -1,4 +1,4 @@
-# Kedi Bakım Takip Sistemi — Geliştirici Rehberi
+# Hayvan Bakım Takip Sistemi — Geliştirici Rehberi
 
 ## Proje Yapısı
 
@@ -6,15 +6,15 @@
 KediTakipSistemi/
 ├── main.py           # Uygulama girişi, App sınıfı, sidebar, header, tema, arama
 ├── theme.py          # 3 tema paleti (Teal/Gece/Pastel) + set_theme() ile dinamik değişim
-├── constants.py      # Sabitler: ırklar, aşı kılavuzu (WSAVA/AAFP), parazit takvimi, menü listesi
-├── database.py       # SQLite CRUD — 10 tablo, tüm veri işlemleri burada
+├── constants.py      # Sabitler: ırklar, aşı kılavuzu (WSAVA/AAFP/AAHA), SECTIONS menü listesi
+├── database.py       # SQLite CRUD — 10 tablo + transaction() context manager
 ├── utils.py          # Yardımcı widget'lar: _card(), _btn(), _title(), _empty(), DatePicker
 ├── icon.py           # Otomatik kedi pati ikonu oluşturucu (.ico)
 └── frames/           # Her bölüm ayrı dosya
-    ├── __init__.py       # Tüm frame'leri import eder, FRAME_MAP sözlüğü
+    ├── __init__.py       # Tüm frame'leri import eder, FRAME_MAP sözlüğü (15 bölüm)
     ├── dashboard.py      # Pano — özet kartlar, acil uyarılar, tıklanabilir kartlar
-    ├── profile.py        # Profil — fotoğraf, QR kod, kedi bilgileri
-    ├── vaccine.py        # Aşı Takvimi — WSAVA/AAFP bazlı
+    ├── profile.py        # Profil — fotoğraf, QR kod, hayvan bilgileri
+    ├── vaccine.py        # Aşı Takvimi — WSAVA/AAFP/AAHA bazlı
     ├── calendar_view.py  # Yıllık Takvim — Canvas ile 12 aylık grid
     ├── guide.py          # Aşı Rehberi — bilimsel referans
     ├── parasite.py       # Parazit Takvimi
@@ -23,8 +23,10 @@ KediTakipSistemi/
     ├── nutrition.py      # Beslenme & Kilo + mama hesaplayıcı + grafik
     ├── health.py         # Sağlık Notları
     ├── expenses.py       # Harcamalar
-    ├── stats.py          # İstatistikler + pasta grafik
-    └── vets.py           # Veteriner Rehberi
+    ├── gallery.py        # Fotoğraf Galerisi (Pillow gerekli)
+    ├── stats.py          # İstatistikler + pasta grafik  [hayvan bağımsız]
+    ├── vets.py           # Veteriner Rehberi            [hayvan bağımsız]
+    └── settings.py       # Ayarlar & Hakkında           [hayvan bağımsız]
 ```
 
 ## Yeni Bölüm Ekleme (4 Adım)
@@ -65,11 +67,34 @@ from frames.yeni_bolum import YeniBolumFrame
 "yeni_bolum": "Yeni Bölüm",
 ```
 
+### Hayvan Bağımsız Bölüm (stats/vets/settings gibi):
+- Frame `__init__` imzası: `(self, parent, app=None, **kw)` — `cid`/`cname` yok
+- `main.py → _show()` içindeki tuple'a ekle:
+  ```python
+  if key in ("stats", "vets", "settings", "yeni_bolum"):
+  ```
+
 ## Yeni DB Tablosu Ekleme
 
 ### 1. database.py → init_db() içine CREATE TABLE ekle
 ### 2. Aynı dosyaya CRUD fonksiyonları ekle (get_, add_, delete_)
 ### 3. Arama için search_all() fonksiyonuna yeni sorgu ekle
+### 4. Performans için `CREATE INDEX IF NOT EXISTS` satırı ekle
+
+## Çok Adımlı Atomik DB İşlemi
+
+```python
+import database as db
+
+# Tek transaction içinde birden fazla işlem — hata olursa tümü geri alınır
+with db.transaction() as c:
+    c.execute("INSERT INTO cats (name) VALUES (?)", ("Boncuk",))
+    cat_id = c.execute("SELECT last_insert_rowid()").fetchone()[0]
+    c.execute(
+        "INSERT INTO health_notes (cat_id, note_date, title, note_type) VALUES (?,?,?,?)",
+        (cat_id, "2026-01-01", "İlk kayıt", "Genel")
+    )
+```
 
 ## Tema Sistemi
 
@@ -85,7 +110,7 @@ theme.py'deki THEMES sözlüğüne yeni tema ekle:
     "BTN_TEXT": "#...",
 },
 ```
-Küre otomatik eklenir (main.py THEMES üzerinde döner).
+Küre otomatik eklenir (main.py ve settings.py THEMES üzerinde döner).
 
 ## Widget Kılavuzu (utils.py)
 
@@ -98,13 +123,18 @@ Küre otomatik eklenir (main.py THEMES üzerinde döner).
 | `_del_btn(parent, command)` | Kırmızı "Sil" butonu | Kayıt silme |
 | `_empty(parent, "icon", "başlık", "alt yazı")` | Boş durum ekranı | Kayıt yokken |
 | `_toast(parent, "mesaj", renk)` | Geçici bildirim | Kayıt sonrası |
-| `DatePicker(parent)` | Tarih seçici | Form'lar |
+| `DatePicker(parent)` | Tarih seçici (validasyonlu) | Form'lar |
+
+### DatePicker Notları
+- `dp.get()` → `"YYYY-MM-DD"` döner
+- Geçersiz günleri (Şubat 31 → Şubat 28) otomatik düzeltir
+- `dp.set("2026-05-15")` ile programatik değer atanabilir
 
 ## Sık Yapılan İşlemler
 
 **Kart rengi değiştir:** theme.py → ilgili ACCENT/CARD_BG değerini değiştir
 **Yeni mama tipi ekle:** constants.py → FOOD_TYPES listesine ekle
-**Yeni harcama kategorisi:** constants.py → EXPENSE_CATEGORIES + theme.py → EXPENSE_COLORS
+**Yeni harcama kategorisi:** constants.py → EXPENSE_CATEGORIES
 **Font boyutu:** utils.py → _title/_lbl içindeki size değerini değiştir
 
 ## Çalıştırma
@@ -117,7 +147,9 @@ python main.py
 
 ## Notlar
 - DB dosyası: kedi_bakim.db (aynı klasörde otomatik oluşur)
-- Fotoğraflar: photos/ klasörüne kopyalanır
+- DB'de test verisi yok — uygulama ilk açıldığında boş gelir, kullanıcı hayvan ekler
+- Fotoğraflar: photos/ klasörüne kopyalanır (mutlak yol saklanır)
 - CSV export: exports/ klasörüne kaydedilir
-- Opsiyonel kütüphaneler: Pillow (fotoğraf), matplotlib (grafik), qrcode (QR kod)
+- Opsiyonel kütüphaneler: Pillow (galeri/profil fotoğrafı), matplotlib (grafik), qrcode (QR kod)
 - Uygulama bunlar olmadan da çalışır, sadece ilgili özellikler devre dışı kalır
+- Frame geçişlerinde double-buffer: `new_frame.pack()` → `old_frame.destroy()` sırası titremeyi önler

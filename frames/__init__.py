@@ -11,6 +11,8 @@ from frames.health import HealthFrame
 from frames.expenses import ExpenseFrame
 from frames.stats import StatsFrame
 from frames.vets import VetFrame
+from frames.gallery import GalleryFrame
+from frames.settings import SettingsFrame
 
 FRAME_MAP = {
     "dashboard": DashboardFrame, "profile": ProfileFrame, "vaccine": VaccineFrame,
@@ -18,4 +20,5 @@ FRAME_MAP = {
     "medications": MedicationsFrame, "appointments": AppointmentsFrame,
     "nutrition": NutritionFrame, "health": HealthFrame, "expenses": ExpenseFrame,
     "stats": StatsFrame, "vets": VetFrame,
+    "gallery": GalleryFrame, "settings": SettingsFrame,
 }
