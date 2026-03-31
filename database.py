@@ -19,7 +19,8 @@ def init_db():
                 breed TEXT DEFAULT '', birthdate TEXT DEFAULT '', color TEXT DEFAULT '',
                 gender TEXT DEFAULT '', blood_type TEXT DEFAULT 'Bilinmiyor',
                 sterilized INTEGER DEFAULT 0, chip_no TEXT DEFAULT '',
-                photo_path TEXT DEFAULT '', notes TEXT DEFAULT ''
+                photo_path TEXT DEFAULT '', notes TEXT DEFAULT '',
+                pet_type TEXT DEFAULT 'cat'
             );
             CREATE TABLE IF NOT EXISTS vaccines (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, cat_id INTEGER NOT NULL,
@@ -82,6 +83,12 @@ def init_db():
                 FOREIGN KEY (cat_id) REFERENCES cats(id) ON DELETE CASCADE
             );
         """)
+        # Migration: pet_type kolonu yoksa ekle
+        try:
+            c.execute("ALTER TABLE cats ADD COLUMN pet_type TEXT DEFAULT 'cat'")
+            c.commit()
+        except Exception:
+            pass  # Zaten var
         c.execute("PRAGMA foreign_keys = ON")
         if c.execute("SELECT COUNT(*) FROM cats").fetchone()[0] == 0:
             c.executemany("INSERT INTO cats (name) VALUES (?)", [("Loki",), ("Yuumi",)])
@@ -95,15 +102,27 @@ def init_db():
 
 # ── Kediler ───────────────────────────────────────────────────────────────────
 def get_cats():
-    with _conn() as c: return c.execute("SELECT id,name FROM cats ORDER BY id").fetchall()
+    with _conn() as c:
+        try:
+            return c.execute("SELECT id, name, pet_type FROM cats ORDER BY id").fetchall()
+        except Exception:
+            return c.execute("SELECT id, name FROM cats ORDER BY id").fetchall()
 
 def get_cat(cid):
     with _conn() as c: return c.execute("SELECT * FROM cats WHERE id=?", (cid,)).fetchone()
 
-def add_cat(name):
+def add_cat(name, pet_type="cat"):
     with _conn() as c:
-        c.execute("INSERT INTO cats (name) VALUES (?)", (name,))
+        c.execute("INSERT INTO cats (name, pet_type) VALUES (?, ?)", (name, pet_type))
         return c.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+def get_pet_type(cid):
+    with _conn() as c:
+        try:
+            r = c.execute("SELECT pet_type FROM cats WHERE id=?", (cid,)).fetchone()
+            return (r[0] or "cat") if r else "cat"
+        except Exception:
+            return "cat"
 
 def delete_cat(cid):
     with _conn() as c:
@@ -114,9 +133,10 @@ def save_cat(cid, d):
     with _conn() as c:
         c.execute(
             "UPDATE cats SET name=?,breed=?,birthdate=?,color=?,gender=?,blood_type=?,"
-            "sterilized=?,chip_no=?,photo_path=?,notes=? WHERE id=?",
+            "sterilized=?,chip_no=?,photo_path=?,notes=?,pet_type=? WHERE id=?",
             (d["name"],d["breed"],d["birthdate"],d["color"],d["gender"],d["blood_type"],
-             d["sterilized"],d["chip_no"],d.get("photo_path",""),d["notes"],cid))
+             d["sterilized"],d["chip_no"],d.get("photo_path",""),d["notes"],
+             d.get("pet_type","cat"),cid))
 
 # ── Aşılar ────────────────────────────────────────────────────────────────────
 def get_vaccines(cid):

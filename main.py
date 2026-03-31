@@ -67,35 +67,32 @@ class App(ctk.CTk):
         logo_f = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         logo_f.pack(fill="x", padx=14, pady=(18, 10))
         ctk.CTkLabel(logo_f, text="🐾", font=ctk.CTkFont(size=26)).pack(side="left", padx=(2, 6))
-        ctk.CTkLabel(logo_f, text="Kedi Takip", font=ctk.CTkFont(size=17, weight="bold"),
+        ctk.CTkLabel(logo_f, text="Hayvan Takip", font=ctk.CTkFont(size=17, weight="bold"),
                      text_color=T.ACCENT).pack(side="left")
 
         # Ayırıcı çizgi
         ctk.CTkFrame(self.sidebar, height=1, fg_color=T.BORDER).pack(fill="x", padx=14, pady=(0, 10))
 
-        # Kedi seçici
-        cat_frame = ctk.CTkFrame(self.sidebar, fg_color=T.SIDEBAR_ACTIVE, corner_radius=8)
-        cat_frame.pack(fill="x", padx=12, pady=(0, 10))
-
-        sel_row = ctk.CTkFrame(cat_frame, fg_color="transparent")
-        sel_row.pack(fill="x", padx=8, pady=(8, 4))
-        ctk.CTkLabel(sel_row, text="Kedi:", font=ctk.CTkFont(size=11),
-                     text_color=T.TEXT_MUTED).pack(side="left")
+        # Hayvan listesi başlığı
         self.cat_var = ctk.StringVar()
-        self.cat_combo = ctk.CTkComboBox(sel_row, variable=self.cat_var, width=125,
-                                         font=ctk.CTkFont(size=12),
-                                         command=self._on_cat_change)
-        self.cat_combo.pack(side="left", padx=6)
+        self._pet_btns = {}
 
-        btn_row = ctk.CTkFrame(cat_frame, fg_color="transparent")
-        btn_row.pack(fill="x", padx=8, pady=(0, 8))
-        ctk.CTkButton(btn_row, text="+ Yeni", width=65, height=26, fg_color=T.ACCENT,
+        pet_hdr = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        pet_hdr.pack(fill="x", padx=12, pady=(0, 3))
+        ctk.CTkLabel(pet_hdr, text="Hayvanlar", font=ctk.CTkFont(size=11),
+                     text_color=T.TEXT_MUTED).pack(side="left")
+        ctk.CTkButton(pet_hdr, text="Sil", width=36, height=22, fg_color=T.SIDEBAR_HOVER,
+                      hover_color=T.ERROR, font=ctk.CTkFont(size=10),
+                      command=self._del_cat).pack(side="right", padx=(3, 0))
+        ctk.CTkButton(pet_hdr, text="+ Yeni", width=52, height=22, fg_color=T.ACCENT,
                       hover_color=T.ACCENT_HOVER, text_color=T.BTN_TEXT,
-                      font=ctk.CTkFont(size=11, weight="bold"),
-                      command=self._add_cat).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(btn_row, text="Sil", width=45, height=26, fg_color=T.SIDEBAR_HOVER,
-                      hover_color=T.ERROR, font=ctk.CTkFont(size=11),
-                      command=self._del_cat).pack(side="left")
+                      font=ctk.CTkFont(size=10, weight="bold"),
+                      command=self._add_cat).pack(side="right")
+
+        # Hayvan listesi (içerik kadar büyür)
+        self._pet_list_frame = ctk.CTkFrame(
+            self.sidebar, fg_color=T.CARD_BG, corner_radius=8)
+        self._pet_list_frame.pack(fill="x", padx=12, pady=(0, 10))
 
         # Arama kutusu
         search_f = ctk.CTkFrame(self.sidebar, fg_color="transparent")
@@ -192,23 +189,66 @@ class App(ctk.CTk):
         self._header_section.configure(text=title)
         cname = self._get_cname()
         if section_key in ("stats", "vets"):
-            self._header_cat.configure(text="Tüm Kediler")
+            self._header_cat.configure(text="Tümü")
         elif cname:
             self._header_cat.configure(text=cname)
         else:
             self._header_cat.configure(text="")
 
-    # ── Kedi yönetimi ────────────────────────────────────────────────────────
+    # ── Hayvan yönetimi ──────────────────────────────────────────────────────
+    _PET_EMOJIS = {"cat": "🐱", "dog": "🐶", "bird": "🦜"}
+
     def _load_cats(self):
         cats = db.get_cats()
         self._cats = {c[1]: c[0] for c in cats}
-        names = [c[1] for c in cats]
-        self.cat_combo.configure(values=names if names else [""])
-        if names:
-            if self.cat_var.get() not in names:
-                self.cat_var.set(names[0])
-        else:
+        self._pet_btns = {}
+
+        for w in self._pet_list_frame.winfo_children():
+            w.destroy()
+
+        if not cats:
+            ctk.CTkLabel(self._pet_list_frame, text="Henüz hayvan yok",
+                         font=ctk.CTkFont(size=11),
+                         text_color=T.TEXT_MUTED).pack(pady=6)
             self.cat_var.set("")
+            return
+
+        for c in cats:
+            cid, name = c[0], c[1]
+            ptype = c[2] if len(c) > 2 else "cat"
+            emoji = self._PET_EMOJIS.get(ptype, "🐾")
+            btn = ctk.CTkButton(
+                self._pet_list_frame, text=f"{emoji}  {name}",
+                anchor="w", height=28, corner_radius=6,
+                fg_color="transparent", hover_color=T.SIDEBAR_HOVER,
+                text_color=T.TEXT_SECONDARY, font=ctk.CTkFont(size=12),
+                command=lambda cid=cid, name=name: self._select_pet(cid, name)
+            )
+            btn.pack(fill="x", padx=4, pady=2)
+            self._pet_btns[cid] = btn
+
+        # Mevcut seçimi koru ya da ilk hayvanı seç
+        current_name = self.cat_var.get()
+        current_cid = self._cats.get(current_name)
+        if current_cid and current_cid in self._pet_btns:
+            self._highlight_pet(current_cid)
+        else:
+            first = cats[0]
+            self.cat_var.set(first[1])
+            self._highlight_pet(first[0])
+
+    def _select_pet(self, cid, name):
+        self.cat_var.set(name)
+        self._highlight_pet(cid)
+        if self._current_section:
+            self._show(self._current_section)
+
+    def _highlight_pet(self, cid):
+        for c, btn in self._pet_btns.items():
+            if c == cid:
+                btn.configure(fg_color=T.SIDEBAR_ACTIVE, text_color=T.ACCENT)
+            else:
+                btn.configure(fg_color="transparent", text_color=T.TEXT_SECONDARY)
 
     def _get_cid(self):
         name = self.cat_var.get()
@@ -217,24 +257,61 @@ class App(ctk.CTk):
     def _get_cname(self):
         return self.cat_var.get()
 
-    def _on_cat_change(self, _=None):
-        if self._current_section:
-            self._show(self._current_section)
-
     def _add_cat(self):
-        name = simpledialog.askstring("Yeni Kedi", "Kedi adı:", parent=self)
-        if name and name.strip():
-            db.add_cat(name.strip())
-            self._load_cats()
-            self.cat_var.set(name.strip())
-            self._show(self._current_section or "dashboard")
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Yeni Hayvan Ekle")
+        dlg.geometry("300x185")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        dlg.configure(fg_color=T.MAIN_BG)
+
+        cf = ctk.CTkFrame(dlg, fg_color="transparent")
+        cf.pack(fill="both", expand=True, padx=20, pady=12)
+
+        ctk.CTkLabel(cf, text="İsim:", font=ctk.CTkFont(size=13),
+                     text_color=T.TEXT_PRIMARY).grid(row=0, column=0, sticky="e", padx=6, pady=7)
+        name_var = ctk.StringVar()
+        name_entry = ctk.CTkEntry(cf, textvariable=name_var, width=160)
+        name_entry.grid(row=0, column=1, sticky="w", pady=7)
+
+        ctk.CTkLabel(cf, text="Tür:", font=ctk.CTkFont(size=13),
+                     text_color=T.TEXT_PRIMARY).grid(row=1, column=0, sticky="e", padx=6, pady=7)
+        type_var = ctk.StringVar(value="🐱 Kedi")
+        ctk.CTkComboBox(cf, variable=type_var,
+                        values=["🐱 Kedi", "🐶 Köpek", "🦜 Kuş"],
+                        width=160).grid(row=1, column=1, sticky="w", pady=7)
+
+        bf = ctk.CTkFrame(dlg, fg_color="transparent")
+        bf.pack(pady=6)
+
+        def on_ok():
+            name = name_var.get().strip()
+            pet_map = {"🐱 Kedi": "cat", "🐶 Köpek": "dog", "🦜 Kuş": "bird"}
+            pet_type = pet_map.get(type_var.get(), "cat")
+            if name:
+                cid = db.add_cat(name, pet_type)
+                self._load_cats()
+                self._select_pet(cid, name)
+            dlg.destroy()
+
+        ctk.CTkButton(bf, text="✓ Ekle", command=on_ok,
+                      fg_color=T.ACCENT, hover_color=T.ACCENT_HOVER,
+                      text_color=T.BTN_TEXT, font=ctk.CTkFont(size=12, weight="bold"),
+                      width=90).pack(side="left", padx=6)
+        ctk.CTkButton(bf, text="İptal", command=dlg.destroy,
+                      fg_color=T.CARD_BG, hover_color=T.SIDEBAR_HOVER,
+                      text_color=T.TEXT_PRIMARY, font=ctk.CTkFont(size=12),
+                      width=80).pack(side="left", padx=6)
+
+        dlg.after(100, name_entry.focus_set)
+        dlg.bind("<Return>", lambda e: on_ok())
 
     def _del_cat(self):
         cid = self._get_cid()
         if not cid:
             return
         name = self._get_cname()
-        if messagebox.askyesno("Kedi Sil", f"'{name}' ve tüm kayıtları silinecek.\nEmin misiniz?", parent=self):
+        if messagebox.askyesno("Hayvan Sil", f"'{name}' ve tüm kayıtları silinecek.\nEmin misiniz?", parent=self):
             db.delete_cat(cid)
             self._load_cats()
             self._show("dashboard")
@@ -275,8 +352,8 @@ class App(ctk.CTk):
         else:
             self._current_frame = ctk.CTkFrame(self.content, fg_color="transparent")
             self._current_frame.pack(fill="both", expand=True)
-            _empty_state(self._current_frame, "🐱", "Henüz kedi eklenmemiş",
-                         "Soldaki '+ Yeni' butonu ile ilk kedinizi ekleyin")
+            _empty_state(self._current_frame, "🐾", "Henüz hayvan eklenmemiş",
+                         "Soldaki '+ Yeni' butonu ile ilk hayvanınızı ekleyin")
             return
 
         self._current_frame.pack(fill="both", expand=True)
@@ -333,6 +410,15 @@ class App(ctk.CTk):
                          text_color=T.TEXT_SECONDARY, width=120).pack(side="left", padx=4)
             ctk.CTkLabel(row, text=col3 or "", font=ctk.CTkFont(size=11),
                          text_color=T.TEXT_MUTED).pack(side="left", padx=4)
+
+    def refresh_sidebar(self):
+        """Profil kaydedilince sidebar'ı güncelle (isim değişebilir)."""
+        self._load_cats()
+
+    def on_cat_deleted(self):
+        """Profil ekranından hayvan silinince listeyi güncelle."""
+        self._load_cats()
+        self._show("dashboard")
 
     # ── Tema değiştir ────────────────────────────────────────────────────────
     def _change_theme(self, theme_key):

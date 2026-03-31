@@ -73,8 +73,16 @@ def _apply(t):
     BADGE_PINK   = "#F48FB1"
 
     VACCINE_COLORS = {
+        # Kedi
         "FVRCP": BADGE_BLUE, "Kuduz": ERROR, "FeLV": BADGE_ORANGE,
         "Bordetella": BADGE_PURPLE, "Chlamydia": BADGE_TEAL, "FIP": TEXT_MUTED,
+        # Köpek
+        "DA2PP": BADGE_BLUE, "Kuduz_K": ERROR, "Leptospirosis": BADGE_TEAL,
+        "Bordetella_K": BADGE_PURPLE, "Lyme": BADGE_GREEN,
+        "CanineInfluenza": BADGE_ORANGE, "CCV_K": TEXT_MUTED,
+        # Kuş
+        "Polyomavirus": BADGE_PINK, "NewcastleDisease": BADGE_YELLOW,
+        "WestNile": TEXT_MUTED,
     }
     NOTE_COLORS = {
         "Ameliyat": ERROR, "Acil": BADGE_ORANGE, "Muayene": BADGE_BLUE,

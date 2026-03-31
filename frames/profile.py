@@ -2,7 +2,10 @@ import os, shutil, tkinter as tk, customtkinter as ctk
 from tkinter import filedialog, messagebox
 import theme as T, database as db
 from utils import _title, _lbl, _card, _toast, _btn, DatePicker, calc_age, export_csv, confirm, PHOTOS_DIR
-from constants import CAT_BREEDS, CAT_COLORS, CAT_GENDERS, CAT_BLOOD_TYPES
+from constants import (CAT_BREEDS, CAT_COLORS, CAT_GENDERS, CAT_BLOOD_TYPES,
+                       DOG_BREEDS, DOG_COLORS, DOG_GENDERS, DOG_BLOOD_TYPES,
+                       BIRD_SPECIES, BIRD_COLORS, BIRD_GENDERS, BIRD_BLOOD_TYPES,
+                       PET_EMOJIS)
 try:
     from PIL import Image, ImageTk; HAS_PIL = True
 except ImportError: HAS_PIL = False
@@ -107,9 +110,23 @@ class ProfileFrame(ctk.CTkFrame):
         self._photo_path = ""; self._build()
 
     def _build(self):
+        pt = db.get_pet_type(self.cid)
+        self._pet_type = pt
+        emoji = PET_EMOJIS.get(pt, "🐾")
+
+        if pt == "dog":
+            breeds, colors, genders, blood_types = DOG_BREEDS, DOG_COLORS, DOG_GENDERS, DOG_BLOOD_TYPES
+            breed_label = "Irk"
+        elif pt == "bird":
+            breeds, colors, genders, blood_types = BIRD_SPECIES, BIRD_COLORS, BIRD_GENDERS, BIRD_BLOOD_TYPES
+            breed_label = "Tür"
+        else:
+            breeds, colors, genders, blood_types = CAT_BREEDS, CAT_COLORS, CAT_GENDERS, CAT_BLOOD_TYPES
+            breed_label = "Irk"
+
         sc = ctk.CTkScrollableFrame(self, fg_color="transparent")
         sc.pack(fill="both", expand=True); self._sc = sc
-        _title(sc, text=f"🐱  {self.cname} — Profil").pack(anchor="w", padx=24, pady=(18,10))
+        _title(sc, text=f"{emoji}  {self.cname} — Profil").pack(anchor="w", padx=24, pady=(18,10))
 
         # Fotoğraf
         pc = _card(sc); pc.pack(fill="x", padx=24, pady=(0,10))
@@ -124,8 +141,9 @@ class ProfileFrame(ctk.CTkFrame):
         self._photo_border.pack(side="left", padx=(0,16))
         self._photo_border.pack_propagate(False)
 
+        self._pet_emoji = emoji
         self._plbl = ctk.CTkLabel(
-            self._photo_border, text="🐱",
+            self._photo_border, text=emoji,
             font=ctk.CTkFont(size=48), text_color=T.TEXT_MUTED
         )
         self._plbl.place(relx=0.5, rely=0.5, anchor="center")
@@ -142,13 +160,13 @@ class ProfileFrame(ctk.CTkFrame):
         card = _card(sc); card.pack(fill="x", padx=24, pady=8)
         card.columnconfigure(1, weight=1); self.vars = {}; r = 0
         self._fe(card, r, "İsim", "name"); r+=1
-        self._fc(card, r, "Irk", "breed", CAT_BREEDS); r+=1
+        self._fc(card, r, breed_label, "breed", breeds); r+=1
         ctk.CTkLabel(card, text="Doğum Tarihi:", anchor="e", font=ctk.CTkFont(size=13),
                      text_color=T.TEXT_PRIMARY).grid(row=r, column=0, sticky="e", padx=(18,8), pady=9)
         self._dp = DatePicker(card); self._dp.grid(row=r, column=1, sticky="w", padx=(0,18), pady=9); r+=1
-        self._fc(card, r, "Renk / Desen", "color", CAT_COLORS); r+=1
-        self._fc(card, r, "Cinsiyet", "gender", CAT_GENDERS); r+=1
-        self._fc(card, r, "Kan Grubu", "blood_type", CAT_BLOOD_TYPES); r+=1
+        self._fc(card, r, "Renk / Desen", "color", colors); r+=1
+        self._fc(card, r, "Cinsiyet", "gender", genders); r+=1
+        self._fc(card, r, "Kan Grubu", "blood_type", blood_types); r+=1
         self._fe(card, r, "Çip No", "chip_no"); r+=1
 
         ctk.CTkLabel(card, text="Kısırlaştırıldı:", anchor="e", font=ctk.CTkFont(size=13),
@@ -202,7 +220,7 @@ class ProfileFrame(ctk.CTkFrame):
             self._plbl.configure(image=self._ctkimg, text="")
             self._photo_border.configure(border_color=T.ACCENT)
         else:
-            self._plbl.configure(image=None, text="🐱")
+            self._plbl.configure(image=None, text=self._pet_emoji)
             self._photo_border.configure(border_color=T.BORDER)
 
     def _pick_photo(self):
@@ -249,13 +267,14 @@ class ProfileFrame(ctk.CTkFrame):
         data = {k: v.get() for k, v in self.vars.items()}
         data["birthdate"] = self._dp.get(); data["sterilized"] = int(self.steril_var.get())
         data["photo_path"] = self._photo_path; data["notes"] = self.notes_box.get("1.0","end-1c")
+        data["pet_type"] = self._pet_type
         db.save_cat(self.cid, data)
         if self.app: self.app.refresh_sidebar()
         _toast(self._sc, "Kaydedildi ✓")
 
     def _delete_cat(self):
         if len(db.get_cats()) <= 1:
-            messagebox.showwarning("Uyarı", "En az 1 kedi olmalı!", parent=self); return
+            messagebox.showwarning("Uyarı", "En az 1 hayvan olmalı!", parent=self); return
         if confirm(self, f"{self.cname} ve tüm kayıtları silinecek. Emin misiniz?"):
             db.delete_cat(self.cid)
             if self.app: self.app.on_cat_deleted()
